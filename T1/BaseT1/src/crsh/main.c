@@ -151,9 +151,17 @@ void init_process(char** input, PList* process_list)
     }
     else if (strcmp(input[0], "crexit") == 0)
     {
+      if(input)
+      {
+        free_user_input(input);
+      }
       kill(0, SIGINT);
       alarm(15);
       exit(9);
+    }
+    if(input)
+    {
+      free_user_input(input);
     }
     exit(255);
   }
@@ -170,6 +178,11 @@ void init_process(char** input, PList* process_list)
     }
     else
     {
+      if(input)
+      {
+        free_user_input(input);
+        input = NULL;
+      }
       return;
     }
     char* programName = args[0];
@@ -188,6 +201,11 @@ void init_process(char** input, PList* process_list)
       free_user_input(input);
       input = NULL;
     }
+  }
+  if(input)
+  {
+    free_user_input(input);
+    input = NULL;
   }
 }
 
