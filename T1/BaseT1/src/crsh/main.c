@@ -28,13 +28,21 @@ int is_prime(char* input)
 {
   char* ptr;
   unsigned long number = strtoul(input, &ptr, 10);
+  if (number == 2)
+  {
+    return 1;
+  }
+  if (number == 1)
+  {
+    return 0;
+  }
   if(number % 2 == 0)
   {
     return 0;
   }
   else
   {
-    for (int i = 3; i*i < number; i += 2)
+    for (int i = 3; i*i <= number; i += 2)
     {
       if(number % i == 0)
       {
@@ -85,7 +93,7 @@ void init_process(char** input)
     }
     else if (strcmp(input[0], "crexit") == 0)
     {
-      // TODO: 
+       // TODO:
     }
     exit(0);
   }
