@@ -140,7 +140,8 @@ void init_process(char** input, PList* process_list)
     }
     else if (strcmp(input[0], "crexit") == 0)
     {
-      printf("here\n");
+      kill(0, SIGINT);
+      alarm(15);
       exit(9);
     }
     exit(255);
@@ -182,13 +183,14 @@ void init_process(char** input, PList* process_list)
 // Global variable needed because a handler accessed it
 //PList* process_list = NULL;
 volatile sig_atomic_t stop = 0;
+pid_t parent_pid;
 
 // Handler for child death signal
 void pingall(int i)
 {
   int status;
   pid_t pid = waitpid(-1, &status, WNOHANG); // wait until child terminates or changes its status
-  if(pid != 0)
+  if(pid != 0 || WEXITSTATUS(status) == 9)
   {
     printf("Process %d exited with code: %d\n", pid, WEXITSTATUS(status));
   }
@@ -198,9 +200,29 @@ void pingall(int i)
   }
   if(WEXITSTATUS(status) == 255)
   {
-    printf("\033[31m Invalid or non-existant process name.\033[0m\n");
+    char msg[] = "\033[31m Invalid or non-existant process name.\033[0m\n";
+    write( STDOUT_FILENO, msg, sizeof msg );
   }
   remove_process_from_list(process_list_global, pid);
+}
+
+void sigint_handler(int sig)
+{
+  pid_t pid = getpid();
+  if (pid != parent_pid)
+  {
+    _exit(9);
+  }
+  else
+  {
+    stop = 1;
+    printf("\n\e[40m\e[5;93mPress enter until program closes.\e[0;0m\n");
+  }
+}
+
+void killall(int sig)
+{
+  kill(0, SIGKILL);
 }
 
 int main(int argc, char const *argv[])
@@ -211,12 +233,17 @@ int main(int argc, char const *argv[])
   char** input = NULL;
 
   // Ping process to see if its still running (Taken from https://stackoverflow.com/questions/27342046/how-to-handle-sighld)
+  signal(SIGALRM, killall);
 
   signal(SIGCHLD, pingall); // catch child status changes
   do {
       waitpid(-1, &status, WNOHANG); // wait until child terminates or changes its status
   } while(!WIFEXITED(status));
 
+  parent_pid = getpid();
+
+  signal(SIGINT, sigint_handler);
+  
   while(!stop)
   {
     printf("> ");
