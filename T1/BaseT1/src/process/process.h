@@ -9,6 +9,7 @@ typedef struct process
 {
     pid_t pid;
     time_t timestart;
+    int ended;
     char* name;
 } Process;
 

@@ -11,6 +11,7 @@ Process* process_init(pid_t pid, time_t time, char* name)
     char* pname = malloc(sizeof(name));
     strcpy(pname, name);
     process->name = pname;
+    process->ended = 0;
     return process;
 }
 

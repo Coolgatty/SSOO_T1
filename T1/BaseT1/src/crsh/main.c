@@ -17,6 +17,8 @@
 #include "../process/process.h"
 #include "../linked_list/linked_list.h"
 
+PList* process_list_global;
+
 void hello()
 {
   printf("\033[32mHello World!\n\033[0m");
@@ -46,6 +48,29 @@ int is_prime(char* input)
     }
   }
   return 1;
+}
+
+void remove_process_from_list(PList* process_list, pid_t pid)
+{
+  if(process_list)
+  {
+    Node* node = process_list->first;
+    while(node)
+    {
+        if(node->process->ended)
+        {
+          node = node->next;
+          continue;
+        }
+        Node* next = node->next;
+        if(node->process->pid == pid)
+        {
+          node->process->ended = 1;
+          break;
+        }
+        node = next;
+    }
+  }
 }
 
 void init_process(char** input, PList* process_list)
@@ -99,20 +124,26 @@ void init_process(char** input, PList* process_list)
       Node* node = process_list->first;
       while(node)
       {
+          if(node->process->ended)
+          {
+            node = node->next;
+            continue;
+          }
           Node* next = node->next;
           Process* process = node->process;
           time_t end = time(NULL);
           int exec_time = (end - process->timestart);
-          printf("\033[33m Process %s with pid %d has been running for %i seconds.\n", process->name, process->pid, exec_time);
+          printf("\n\033[33m Process %s with pid %d has been running for %i seconds.\033[0m\n", process->name, process->pid, exec_time);
           node = next;
       }  
+      exit(0);
     }
     else if (strcmp(input[0], "crexit") == 0)
     {
       printf("here\n");
       exit(9);
     }
-    exit(0);
+    exit(255);
   }
   else if(process_pid > 0)
   {
@@ -148,6 +179,8 @@ void init_process(char** input, PList* process_list)
   }
 }
 
+// Global variable needed because a handler accessed it
+//PList* process_list = NULL;
 volatile sig_atomic_t stop = 0;
 
 // Handler for child death signal
@@ -155,7 +188,7 @@ void pingall(int i)
 {
   int status;
   pid_t pid = waitpid(-1, &status, WNOHANG); // wait until child terminates or changes its status
-  if(pid > 0)
+  if(pid != 0)
   {
     printf("Process %d exited with code: %d\n", pid, WEXITSTATUS(status));
   }
@@ -163,24 +196,18 @@ void pingall(int i)
   {
     stop = 1;
   }
-}
-
-void invalid(int i)
-{
-  int status;
-  waitpid(-1, &status, WNOHANG); // wait until child terminates or changes its status
   if(WEXITSTATUS(status) == 255)
   {
     printf("\033[31m Invalid or non-existant process name.\033[0m\n");
   }
+  remove_process_from_list(process_list_global, pid);
 }
 
 int main(int argc, char const *argv[])
 {
   int status;
-
   PList* process_list = list_init();
-
+  process_list_global = process_list;
   char** input = NULL;
 
   // Ping process to see if its still running (Taken from https://stackoverflow.com/questions/27342046/how-to-handle-sighld)
@@ -190,15 +217,14 @@ int main(int argc, char const *argv[])
       waitpid(-1, &status, WNOHANG); // wait until child terminates or changes its status
   } while(!WIFEXITED(status));
 
-  signal(SIGCHLD, invalid); // catch child status changes
-  do {
-      waitpid(-1, &status, WNOHANG); // wait until child terminates or changes its status
-  } while(!WIFEXITED(status));
-
   while(!stop)
   {
     printf("> ");
     input = read_user_input();
+    if(stop)
+    {
+      break;
+    }
     printf("> The first argument you wrote was: %s\n", input[0]);
 
     init_process(input, process_list);
